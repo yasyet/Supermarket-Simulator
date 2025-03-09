@@ -1,0 +1,12 @@
+"filename", "language", "Lua", "JSON", "Markdown", "comment", "blank", "total"
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/README.md", "Markdown", 0, 0, 12, 0, 5, 17
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/default.project.json", "JSON", 0, 35, 0, 0, 5, 40
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Classes/Plot.luau", "Lua", 17, 0, 0, 0, 10, 27
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Client/Interaction.client.luau", "Lua", 9, 0, 0, 5, 4, 18
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Data/Items.luau", "Lua", 24, 0, 0, 0, 6, 30
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Modules/Interaction.luau", "Lua", 184, 0, 0, 28, 53, 265
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Modules/Placement.luau", "Lua", 163, 0, 0, 43, 62, 268
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Modules/Utility.luau", "Lua", 18, 0, 0, 10, 9, 37
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Server/PlayerAttributes.server.luau", "Lua", 7, 0, 0, 3, 5, 15
+"/Users/yasyet/Desktop/ROBLOX/Supermarket Simulator/src/Server/PlotAssignment.server.luau", "Lua", 19, 0, 0, 0, 6, 25
+"Total", "-", 441, 35, 12, 89, 165, 742

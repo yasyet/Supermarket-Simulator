@@ -1,0 +1,40 @@
+{
+  "name": "Supermarket Simulator",
+  "tree": {
+    "$className": "DataModel",
+
+    "ReplicatedStorage": {
+      "$className": "ReplicatedStorage",
+      "$ignoreUnknownInstances": true,
+
+      "Modules": {
+        "$path": "src/Modules",
+        "$ignoreUnknownInstances": true
+      },
+      "Data": {
+        "$path": "src/Data",
+        "$ignoreUnknownInstances": true
+      },
+      "Classes": {
+        "$path": "src/Classes",
+        "$ignoreUnknownInstances": true
+      }
+    },
+
+    "ServerScriptService": {
+      "$className": "ServerScriptService",
+      "$ignoreUnknownInstances": true,
+      "$path": "src/Server"
+    },
+
+    "StarterPlayer": {
+      "$className": "StarterPlayer",
+      "$ignoreUnknownInstances": true,
+
+      "StarterPlayerScripts": {
+        "$path": "src/Client",
+        "$ignoreUnknownInstances": true
+      }
+    }
+  }
+}

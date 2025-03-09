@@ -1,0 +1,279 @@
+local Players = game:GetService("Players")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
+local Debris  = game:GetService("Debris")
+local UserInputService = game:GetService("UserInputService")
+
+-- ReplicatedStorage Content
+local Assets = ReplicatedStorage.Assets
+local Modules = ReplicatedStorage.Modules
+
+-- Modules
+local Utility = require(Modules.Utility)
+local Placement = require(Modules.Placement)
+
+-- Constants
+local MAX_DISTANCE = 400 --11
+local FILL_TRANSPARENCY = 0.9
+local OUTLINE_TRANSPARENCY = 0.3
+local TWEEN_TIME = 0.06
+local INTERACT_TAG = "Interact"
+
+local Interaction = {}
+
+-- Utility: Find the first instance of a tag
+local function FindFirstAncestorWithTag(instance, tag)
+    if not instance then return nil end
+    
+    local current = instance
+    local maxDepth = 15 -- Max depth to search for the tag
+    local depth = 0
+
+    while current and depth < maxDepth do
+        local success, hasTag = pcall(function()
+            return current:HasTag(tag)
+        end)
+        
+        if success and hasTag then
+            return current
+        end
+        
+        current = current.Parent
+        depth += 1
+    end
+    
+    return nil
+end
+
+-- Utility: Check if object is interactable
+local function IsInteractable(instance)
+    local modelWithTag = FindFirstAncestorWithTag(instance, INTERACT_TAG)
+    -- Tweens the highlight of the object
+    return modelWithTag
+end
+
+-- Utility: Tween the highlight of the object
+local function TweenHighlight(highlight, goal)
+    local tweenInfo = TweenInfo.new(TWEEN_TIME, Enum.EasingStyle.Linear)
+    local tween = TweenService:Create(highlight, tweenInfo, goal)
+    tween:Play()
+end
+
+-- When a player looks at an object
+local function ObjectHit(instance)    
+    if not IsInteractable(instance) then
+        return
+    end
+
+    if Players.LocalPlayer:GetAttribute("Interacting") then
+        return
+    end
+
+    -- Runs if the instance has the tag INTERACT_TAG
+    local highlightClone = Assets.Highlights.Interact:Clone()
+    highlightClone.Parent = FindFirstAncestorWithTag(instance, INTERACT_TAG)
+
+    -- Resets the transparency of the highlight, then tweens it
+    highlightClone.FillTransparency = 1
+    highlightClone.OutlineTransparency = 1
+    TweenHighlight(highlightClone, {FillTransparency = FILL_TRANSPARENCY, OutlineTransparency = OUTLINE_TRANSPARENCY})
+    game:GetService("CollectionService"):AddTag(highlightClone, "Interactable")
+end
+
+
+-- When a player stops looking at an object
+local function ObjectHitRemove(instance)
+    if not IsInteractable(instance) then
+        return
+    end
+
+    -- Finds highlight of module and destroys it
+    local modelDescendants = FindFirstAncestorWithTag(instance, INTERACT_TAG):GetDescendants()
+
+    for _, descendant in ipairs(modelDescendants) do
+        if descendant.Name == "Interact" then
+            TweenHighlight(descendant, {FillTransparency = 1, OutlineTransparency = 1})
+            Debris:AddItem(descendant, TWEEN_TIME)
+        end
+    end
+end
+
+ -- This function is called when the game is running on a mobile device
+function Interaction.Mobile()
+    local previousRaycastResult = nil
+    local raycastResult = nil
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then
+            return
+        end
+
+        if input.UserInputType == Enum.UserInputType.Touch then
+            local touchPosition = input.Position
+            local camera = workspace.CurrentCamera
+            local unitRay = camera:ViewportPointToRay(touchPosition.X, touchPosition.Y)
+            local direction = unitRay.Direction
+
+            raycastResult = Utility.ShootRaycast(camera, direction, Players.LocalPlayer, MAX_DISTANCE)
+
+            -- If the raycast result is nil, continue
+            if not raycastResult then
+                if previousRaycastResult then
+                    ObjectHitRemove(previousRaycastResult)
+                    previousRaycastResult = nil
+                end
+                return
+            end
+
+            local raycastInstance = FindFirstAncestorWithTag(raycastResult.Instance, INTERACT_TAG)
+            
+            if previousRaycastResult then
+            -- If player taps on object twice, activate the interaction mode
+                if not previousRaycastResult == raycastInstance then
+                    return
+                end
+
+                ObjectHitRemove(raycastInstance)
+                Players.LocalPlayer:SetAttribute("Interacting", true)
+
+                if not IsInteractable(raycastInstance) then
+                    return
+                end
+
+                task.spawn(function()
+                    Placement.Enable(Players.LocalPlayer, raycastInstance)
+                end)
+
+                return
+            end
+
+            -- If no previous Object is hit, call ObjectHit function
+            if not previousRaycastResult then
+                previousRaycastResult = raycastInstance
+                ObjectHit(raycastInstance)
+            end
+
+            -- If new Object is hit, call ObjectHit function
+            if previousRaycastResult ~= raycastInstance then
+                ObjectHitRemove(previousRaycastResult)
+                previousRaycastResult = raycastInstance
+                ObjectHit(raycastInstance)
+            end
+        end
+    end)
+end
+
+ -- This function is called when the game is running on a non-mobile device
+function Interaction.NonMobile()
+    local raycastResult = nil
+    local previousRaycastResult = nil
+    local raycastInstance = nil
+
+    task.spawn(function()
+        while true do
+            task.wait()
+
+            -- Get the direction of the mouse
+            local camera = workspace.CurrentCamera
+            local direction = camera.CFrame.LookVector
+
+            -- Shoot a raycast in the direction of the mouse
+            raycastResult = Utility.ShootRaycast(camera, direction, Players.LocalPlayer, MAX_DISTANCE)
+
+            -- If the raycast result is nil, continue
+            if not raycastResult then
+                if previousRaycastResult then
+                    ObjectHitRemove(previousRaycastResult.Instance)
+                    previousRaycastResult = nil
+                end
+                continue
+            end
+
+            -- If no previous Object is hit, call ObjectHit function
+            if not previousRaycastResult then
+                previousRaycastResult = raycastResult
+                ObjectHit(raycastResult.Instance)
+            end
+
+            -- If new Object is hit, call ObjectHit function
+            if previousRaycastResult.Instance ~= raycastResult.Instance then
+                ObjectHitRemove(previousRaycastResult.Instance)
+                previousRaycastResult = raycastResult
+                ObjectHit(raycastResult.Instance)
+            end
+        end
+    end)
+
+    UserInputService.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then
+            return
+        end
+
+        -- If the player clicks on the object
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+            input.KeyCode == Enum.KeyCode.ButtonR2 then
+
+            if not raycastResult then
+                return
+            end
+
+            if not raycastResult.Instance then
+                return
+            end
+
+            -- Get the instance of the object
+            raycastInstance = FindFirstAncestorWithTag(raycastResult.Instance, INTERACT_TAG)
+            
+            if not IsInteractable(raycastInstance) then
+                return
+            end
+
+            -- Get the interact highlight of the object
+            local interactHighlight = raycastInstance:FindFirstChild("Interact")
+
+            -- Flash effect when clicking interactable object
+            if interactHighlight then
+                local goal = {FillTransparency = 0.85}
+                TweenHighlight(interactHighlight, goal)
+            end
+        end
+    end)
+
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if gameProcessed then
+            return
+        end
+
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
+            input.KeyCode == Enum.KeyCode.ButtonR2 then
+
+            if not raycastResult then
+                return
+            end
+
+            if not IsInteractable(raycastInstance) then
+                return
+            end
+
+            local interactHighlight = raycastInstance:FindFirstChild("Interact")
+
+            if interactHighlight then
+                local goal = {FillTransparency = FILL_TRANSPARENCY}
+                TweenHighlight(interactHighlight, goal)
+            end
+
+            -- Enter placement mode
+            if raycastInstance:HasTag("Placement") then
+                task.spawn(function()
+                    Placement.Enable(Players.LocalPlayer, raycastInstance)
+                end)
+            end
+
+            ObjectHitRemove(raycastInstance)
+            -- Enter interaction mode
+            Players.LocalPlayer:SetAttribute("Interacting", true)
+        end
+    end)
+end
+
+return Interaction
