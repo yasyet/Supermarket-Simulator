@@ -48,8 +48,14 @@ end
 
 local newCFrame = nil
 -- Place Model
-local function PlaceModel(model, raycastPosition)
-    newCFrame = CFrame.new(raycastPosition) * CFrame.Angles(0, math.rad(currentRotation), 0)
+local function PlaceModel(model, raycastPosition, raycastSurface)
+    if model:GetAttribute("HitSurface") == "Wall" then
+        newCFrame = CFrame.new(raycastPosition, raycastPosition + raycastSurface)
+    else
+        newCFrame = CFrame.new(raycastPosition) * CFrame.Angles(0, math.rad(currentRotation), 0)
+    end
+
+    newCFrame = Utility.RoundToNearestStud(newCFrame, 0.5)
     model:SetPrimaryPartCFrame(newCFrame)
     model.Parent = workspace
 end
@@ -72,16 +78,6 @@ local function UpdateModelHighlight(model, raycastInstance, player, canPlace)
             end
         end
         return nil
-    end
-
-    local modelObstructed = Utility.IsObstructed(model.Collission, modelDescendants)
-
-    -- Find the plot the model is in
-    local Plot = raycastInstance:FindFirstAncestor("Plot")
-
-    local ownPlot = false
-    if Plot then
-        ownPlot = Plot:GetAttribute("Owner") == player.UserId
     end
     
     -- Fix: Change condition to show error when obstructed OR not own plot
@@ -114,9 +110,15 @@ local function UpdateModelHighlight(model, raycastInstance, player, canPlace)
     end
 end
 
-local function CheckPlacingSurface(raycastInstance)
+local function CheckPlacingSurface(itemModel, raycastInstance)
     local HitTags = raycastInstance:GetTags()
+    local modelHitSurface = itemModel:GetAttribute("HitSurface")
     local hitSurface = nil
+
+    if not modelHitSurface then
+        warn("HitSurface attribute not found in model")
+        return false
+    end
 
     if table.find(HitTags, "Floor") then
         hitSurface = "Floor"
@@ -126,7 +128,7 @@ local function CheckPlacingSurface(raycastInstance)
         hitSurface = "Ceiling"
     end
 
-    return hitSurface
+    return hitSurface == modelHitSurface
 end
 
 local function PlaceModelMobile(player, itemModel)
@@ -185,12 +187,12 @@ local function PlaceModelMobile(player, itemModel)
             -- Update model's highlight
             UpdateModelHighlight(itemModel, raycastInstance, player, canPlace)
 
-            if not table.find(HitTags, "Floor") then
+            if not CheckPlacingSurface(itemModel, raycastInstance) then
                 canPlace = false
                 return
             end
 
-            PlaceModel(itemModel, raycastPosition)
+            PlaceModel(itemModel, raycastPosition, raycastResult.Normal)
         end
     end),
 
@@ -273,19 +275,22 @@ local function PlaceModelNonMobile(player, itemModel)
         
         if not itemModel.PrimaryPart then return end
         
-        -- Handle rotation
-        if input.KeyCode == Enum.KeyCode.E then
-
-            currentRotation = currentRotation + 90
-            RotateModel(itemModel, currentRotation)
-
-        elseif input.KeyCode == Enum.KeyCode.Q then
-
-            currentRotation = currentRotation - 90
-            RotateModel(itemModel, currentRotation)
-
+        if itemModel:GetAttribute("HitSurface") ~= "Wall" then
+            -- Handle rotation
+            if input.KeyCode == Enum.KeyCode.E then
+    
+                currentRotation = currentRotation + 90
+                RotateModel(itemModel, currentRotation)
+    
+            elseif input.KeyCode == Enum.KeyCode.Q then
+    
+                currentRotation = currentRotation - 90
+                RotateModel(itemModel, currentRotation)
+            end
+        end
+        
         -- Handle placement
-        elseif input.UserInputType == Enum.UserInputType.MouseButton1 or
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or
             input.KeyCode == Enum.KeyCode.ButtonR2 then
             if canPlace and currentPlot then                
                 -- Remove all highlights
@@ -359,13 +364,12 @@ local function PlaceModelNonMobile(player, itemModel)
         -- Update model's highlight
         UpdateModelHighlight(itemModel, raycastInstance, player, canPlace)
         
-        local HitTags = raycastInstance:GetTags()
-        if not CheckPlacingSurface(raycastInstance) then
+        if not CheckPlacingSurface(itemModel, raycastInstance) then
             canPlace = false
             continue
         end
         
-        PlaceModel(itemModel, raycastPosition)
+        PlaceModel(itemModel, raycastPosition, raycastResult.Normal)
     end
     
     -- Clean up connection when done
@@ -405,6 +409,11 @@ function Placement.Enable(player, boxInstance)
         currentRotation = currentRotation + 90
         RotateModel(itemModel, currentRotation)
     end)
+
+    if itemModel:GetAttribute("HitSurface") == "Wall" then
+        RotateLeft.Visible = false
+        RotateRight.Visible = false
+    end
 
     -- If the player is a mobile player
     local isMobile = player:GetAttribute("Mobile")
