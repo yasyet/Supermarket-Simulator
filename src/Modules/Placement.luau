@@ -139,9 +139,21 @@ local function PlaceModelMobile(player, itemModel)
     local canPlace = false
     local currentPlot = nil
 
+    -- Variables for keybinds
+    local touchStartTime = nil
+    local touchStartPosition = nil
+    local isTouching = false
+    local MAX_TAP_TIME = 0.3
+    local MAX_TAP_MOVEMENT = 10
+
+    -- Store raycast result
+    local raycastResult = nil
+    local raycastInstance = nil
+    local raycastPosition = nil
+
     -- Store connection to clean up later
-    local keybindConnection = nil
-    keybindConnection = {UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    local keybindConnection = {}
+    table.insert(keybindConnection, UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then
             return
         end
@@ -160,13 +172,13 @@ local function PlaceModelMobile(player, itemModel)
             local unitRay = camera:ViewportPointToRay(touchPosition.X, touchPosition.Y)
             local direction = unitRay.Direction
 
-            local raycastResult = Utility.ShootRaycast(camera, direction, player, 100)
+            raycastResult = Utility.ShootRaycast(camera, direction, player, 100)
             if not raycastResult then
                 return
             end
 
-            local raycastPosition = raycastResult.Position
-            local raycastInstance = raycastResult.Instance
+            raycastPosition = raycastResult.Position
+            raycastInstance = raycastResult.Instance
 
             currentPlot = raycastInstance:FindFirstAncestor("Plot")
             
@@ -174,12 +186,11 @@ local function PlaceModelMobile(player, itemModel)
             if currentPlot then
                 ownPlot = currentPlot:GetAttribute("Owner") == player.UserId
             else
+                print("No plot found")
                 ownPlot = false
             end
 
             local modelObstructed = Utility.IsObstructed(itemModel.Collission, itemModel:GetDescendants())
-
-            local HitTags = raycastInstance:GetTags()
 
             -- Update placement validity
             canPlace = not modelObstructed and ownPlot and currentPlot ~= nil
@@ -188,74 +199,100 @@ local function PlaceModelMobile(player, itemModel)
             UpdateModelHighlight(itemModel, raycastInstance, player, canPlace)
 
             if not CheckPlacingSurface(itemModel, raycastInstance) then
+                print("Surface not valid")
                 canPlace = false
                 return
             end
 
             PlaceModel(itemModel, raycastPosition, raycastResult.Normal)
         end
-    end),
+    end))
 
-    UserInputService.TouchTap:Connect(function(touchPosition, gameProcessed)
+    table.insert(keybindConnection, UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then
             return
         end
 
-        if not canPlace then
+        if input.UserInputType == Enum.UserInputType.Touch then
+            touchStartTime = os.clock()
+            touchStartPosition = input.Position
+            isTouching = true
+        end
+    end))
+
+    table.insert(keybindConnection, UserInputService.InputChanged:Connect(function(input, gameProcessed)
+        if gameProcessed then
             return
         end
 
-        print("TouchTap")
-
-        local touchPosition = touchPosition[1]
-
-        local camera = workspace.CurrentCamera
-        local unitRay = camera:ViewportPointToRay(touchPosition.X, touchPosition.Y)
-
-        local raycastParams = RaycastParams.new()
-        raycastParams.FilterType = Enum.RaycastFilterType.Blacklist
-        raycastParams.FilterDescendantsInstances = {camera, player.Character}
-
-        local raycastResult = workspace:Raycast(camera.CFrame.Position, unitRay.Direction * 100, raycastParams)
-        if not raycastResult then
+        if not touchStartTime then
             return
         end
 
-        -- Remove all highlights
-        for _, desc in pairs(itemModel:GetDescendants()) do
-            if desc:IsA("Highlight") then
-                desc:Destroy()
+        if not touchStartPosition then
+            return
+        end
+        
+        if input.UserInputType == Enum.UserInputType.Touch then
+            local touchDelta = (input.Position - touchStartPosition).Magnitude
+            if touchDelta > MAX_TAP_MOVEMENT then
+                isTouching = false
+                return
+            end
+
+            local touchDuration = os.clock() - touchStartTime
+            if touchDuration > MAX_TAP_TIME then
+                isTouching = false
+                return
             end
         end
+    end))
 
-        -- Parent to plot
-        itemModel.Parent = currentPlot
-
-        -- First disconnect connection
-        for _, connection in pairs(keybindConnection) do
-            connection:Disconnect()
+    table.insert(keybindConnection, UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if gameProcessed then
+            return
         end
 
+        if input.UserInputType == Enum.UserInputType.Touch then
+            if not isTouching then
+                return
+            end
 
-        -- Then disable placement mode
-        player:SetAttribute("Placement", false)
+            if not canPlace then
+                return
+            end
 
-        -- Hide placement GUI
-        player.PlayerGui:WaitForChild("PlacementGui").Enabled = false
+            -- Remove all highlights
+            for _, desc in pairs(itemModel:GetDescendants()) do
+                if desc:IsA("Highlight") then
+                    desc:Destroy()
+                end
+            end
 
-        -- End interacting mode
-        player:SetAttribute("Interacting", false)
+            -- First disconnect connection
+            for _, connection in pairs(keybindConnection) do
+                connection:Disconnect()
+            end
+            
+            -- Then disable placement mode
+            player:SetAttribute("Placement", false)
+            
+            -- Hide placement GUI
+            player.PlayerGui:WaitForChild("PlacementGui").Enabled = false
+            
+            -- End interacting mode
+            player:SetAttribute("Interacting", false)
 
-        -- Emit event to server
-        PlaceFurnitureRemote:FireServer(currentPlot.Name, itemModel.Name, newCFrame)
+            -- Emit event to server
+            PlaceFurnitureRemote:FireServer(currentPlot.Name, itemModel.Name, newCFrame)
 
-        task.wait(0.1)
+            task.wait(0.1)
 
-        -- Delete itemModel
-        itemModel:Destroy()
-        itemModel = nil
-    end)
-    }
+            -- Delete itemModel
+            itemModel:Destroy()
+            itemModel = nil
+        end
+    end))
 end
 
 local function PlaceModelNonMobile(player, itemModel)
@@ -299,10 +336,7 @@ local function PlaceModelNonMobile(player, itemModel)
                         desc:Destroy()
                     end
                 end
-                
-                -- Parent to plot
-                itemModel.Parent = currentPlot
-                
+
                 -- First disconnect connection
                 keybindConnection:Disconnect()
                 
@@ -323,7 +357,6 @@ local function PlaceModelNonMobile(player, itemModel)
                 -- Delete itemModel
                 itemModel:Destroy()
                 itemModel = nil
-
             end
         end
     end)
