@@ -410,10 +410,9 @@ function Placement.Enable(player, boxInstance)
         RotateModel(itemModel, currentRotation)
     end)
 
-    if itemModel:GetAttribute("HitSurface") == "Wall" then
-        RotateLeft.Visible = false
-        RotateRight.Visible = false
-    end
+    local isWallHitSurface = itemModel:GetAttribute("HitSurface") == "Wall"
+    RotateLeft.Visible = not isWallHitSurface
+    RotateRight.Visible = not isWallHitSurface
 
     -- If the player is a mobile player
     local isMobile = player:GetAttribute("Mobile")
