@@ -25,5 +25,10 @@ return {
     ["Register"] = {
         ["Name"] = "Register",
         ["Model"] = Furniture.Register
+    },
+
+    ["Painting"] = {
+        ["Name"] = "Painting",
+        ["Model"] = Furniture.Painting
     }
 }

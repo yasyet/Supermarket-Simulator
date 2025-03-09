@@ -51,13 +51,15 @@ function Utility.GetPlotByName(plotName)
 end
 
 -- Round CFrame to x studs
-function Utility.RoundToNearestStud(CFrame, studSize)
-    local position = CFrame.Position
+function Utility.RoundToNearestStud(raycastCFrame, studSize)
+    local position = raycastCFrame.Position
     local x = math.floor(position.X / studSize + 0.5) * studSize
-    local y = math.floor(position.Y / studSize + 0.5) * studSize
+    local y = raycastCFrame.Y
     local z = math.floor(position.Z / studSize + 0.5) * studSize
 
-    return CFrame.new(x, y, z)
+    local newPosition = Vector3.new(x, y, z)
+    local newCFrame = CFrame.new(newPosition, newPosition + raycastCFrame.LookVector)
+    return newCFrame
 end
 
 return Utility
