@@ -50,4 +50,14 @@ function Utility.GetPlotByName(plotName)
     return plot
 end
 
+-- Round CFrame to x studs
+function Utility.RoundToNearestStud(CFrame, studSize)
+    local position = CFrame.Position
+    local x = math.floor(position.X / studSize + 0.5) * studSize
+    local y = math.floor(position.Y / studSize + 0.5) * studSize
+    local z = math.floor(position.Z / studSize + 0.5) * studSize
+
+    return CFrame.new(x, y, z)
+end
+
 return Utility

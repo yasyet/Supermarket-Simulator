@@ -46,6 +46,14 @@ local function RotateModel(model, rotation)
     model:PivotTo(newCFrame)
 end
 
+local newCFrame = nil
+-- Place Model
+local function PlaceModel(model, raycastPosition)
+    newCFrame = CFrame.new(raycastPosition) * CFrame.Angles(0, math.rad(currentRotation), 0)
+    model:SetPrimaryPartCFrame(newCFrame)
+    model.Parent = workspace
+end
+
 -- Update color of model's highlight
 local function UpdateModelHighlight(model, raycastInstance, player, canPlace)
 
@@ -75,7 +83,7 @@ local function UpdateModelHighlight(model, raycastInstance, player, canPlace)
     if Plot then
         ownPlot = Plot:GetAttribute("Owner") == player.UserId
     end
-
+    
     -- Fix: Change condition to show error when obstructed OR not own plot
     if not canPlace then
         -- Remove Success Highlight if present
@@ -106,10 +114,22 @@ local function UpdateModelHighlight(model, raycastInstance, player, canPlace)
     end
 end
 
-local function PlaceModelMobile(player, itemModel)
-    local currentRotation = 0 -- Track current rotation
-    local newCFrame = nil -- Track new CFrame
+local function CheckPlacingSurface(raycastInstance)
+    local HitTags = raycastInstance:GetTags()
+    local hitSurface = nil
 
+    if table.find(HitTags, "Floor") then
+        hitSurface = "Floor"
+    elseif table.find(HitTags, "Wall") then
+        hitSurface = "Wall"
+    elseif table.find(HitTags, "Ceiling") then
+        hitSurface = "Ceiling"
+    end
+
+    return hitSurface
+end
+
+local function PlaceModelMobile(player, itemModel)
     -- Set collision state
     SetModelCollission(itemModel, false)
 
@@ -170,9 +190,7 @@ local function PlaceModelMobile(player, itemModel)
                 return
             end
 
-            newCFrame = CFrame.new(raycastPosition) * CFrame.Angles(0, math.rad(currentRotation), 0)
-            itemModel:SetPrimaryPartCFrame(newCFrame)
-            itemModel.Parent = workspace
+            PlaceModel(itemModel, raycastPosition)
         end
     end),
 
@@ -240,7 +258,6 @@ end
 
 local function PlaceModelNonMobile(player, itemModel)
     local Camera = workspace.CurrentCamera
-    local newCFrame = nil -- Track new CFrame
     
     -- Set collision state
     SetModelCollission(itemModel, false)
@@ -343,15 +360,12 @@ local function PlaceModelNonMobile(player, itemModel)
         UpdateModelHighlight(itemModel, raycastInstance, player, canPlace)
         
         local HitTags = raycastInstance:GetTags()
-        if not table.find(HitTags, "Floor") then
+        if not CheckPlacingSurface(raycastInstance) then
             canPlace = false
             continue
         end
         
-        -- Apply position while maintaining rotation
-        newCFrame = CFrame.new(raycastPosition) * CFrame.Angles(0, math.rad(currentRotation), 0)
-        itemModel:SetPrimaryPartCFrame(newCFrame)
-        itemModel.Parent = workspace
+        PlaceModel(itemModel, raycastPosition)
     end
     
     -- Clean up connection when done

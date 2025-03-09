@@ -46,6 +46,11 @@ PlaceFurniture.OnServerEvent:Connect(function(player, plotName, itemName, modelC
 
     Utility.SetFurnitureAttribute(placedModel, player, overideAttributes)
 
+    if not modelCFrame then
+        warn("No modelCFrame received for item:", itemName)
+        return
+    end
+
     -- Position the model
     if placedModel.PrimaryPart then
         placedModel:SetPrimaryPartCFrame(modelCFrame)
