@@ -228,7 +228,7 @@ function Interaction.Mobile()
             
             -- Too much movement: End the tap
             local delta = (input.Position - touchStartPosition).Magnitude
-            if delta > MAX_TAP_MOVEMENT then
+            if delta < MAX_TAP_MOVEMENT then
                 isTouching = false
                 return
             end

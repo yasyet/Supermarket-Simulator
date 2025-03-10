@@ -235,13 +235,13 @@ local function PlaceModelMobile(player, itemModel)
         
         if input.UserInputType == Enum.UserInputType.Touch then
             local touchDelta = (input.Position - touchStartPosition).Magnitude
-            if touchDelta > MAX_TAP_MOVEMENT then
+            if touchDelta <= MAX_TAP_MOVEMENT then
                 isTouching = false
                 return
             end
 
             local touchDuration = os.clock() - touchStartTime
-            if touchDuration > MAX_TAP_TIME then
+            if touchDuration <= MAX_TAP_TIME then
                 isTouching = false
                 return
             end
