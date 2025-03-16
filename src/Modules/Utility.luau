@@ -2,18 +2,23 @@ local Utility = {}
 
 -- Function to return raycast result of item from screen position
 function Utility.ShootRaycast(camera, direction, player, MAX_DISTANCE)
-    -- Filter out the camera and the player's character
     local rayParams = RaycastParams.new()
-    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
-    rayParams.FilterDescendantsInstances = {camera, player.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Exclude
+
+    -- Liste aller zu ignorierenden Objekte
+    local filterList = {camera}
+
+    -- Füge alle Spielercharaktere hinzu
+    for _, p in pairs(game:GetService("Players"):GetPlayers()) do
+        if p.Character then
+            table.insert(filterList, p.Character)
+        end
+    end
+
+    rayParams.FilterDescendantsInstances = filterList
 
     local raycastResult = workspace:Raycast(camera.CFrame.Position, direction * MAX_DISTANCE, rayParams)
-
-    if raycastResult then
-        return raycastResult
-    else
-        return nil
-    end
+    return raycastResult
 end
 
 -- Function to check if object is in part
