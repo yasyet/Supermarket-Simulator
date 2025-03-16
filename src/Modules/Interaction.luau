@@ -209,6 +209,10 @@ function Interaction.Mobile()
             return
         end
 
+        if Players.LocalPlayer:GetAttribute("Interacting") then
+            return
+        end
+
         -- Start the tap
         if input.UserInputType == Enum.UserInputType.Touch then
             isTouching = true
@@ -256,6 +260,10 @@ function Interaction.NonMobile()
 
     UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then
+            return
+        end
+
+        if Players.LocalPlayer:GetAttribute("Interacting") then
             return
         end
 

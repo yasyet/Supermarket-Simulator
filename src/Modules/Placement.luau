@@ -134,6 +134,7 @@ local function CheckPlacingSurface(itemModel, raycastInstance)
 end
 
 local function PlaceModelMobile(player, itemModel)
+
     -- Set collision state
     SetModelCollission(itemModel, false)
 
@@ -141,13 +142,8 @@ local function PlaceModelMobile(player, itemModel)
     local canPlace = false
 
     -- Variables for keybinds
-    local MAX_TAP_TIME = 0.3
-    local MAX_TAP_MOVEMENT = 10
-
-    -- Store raycast result
-    local raycastResult = nil
-    local raycastInstance = nil
-    local raycastPosition = nil
+    local MAX_TAP_TIME = 1
+    local MAX_TAP_MOVEMENT = 20
 
     -- Store connection to clean up later
     local keybindConnection = {}
@@ -163,19 +159,19 @@ local function PlaceModelMobile(player, itemModel)
     }
 
     table.insert(keybindConnection, UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
-
         if not itemModel or not itemModel.PrimaryPart then
             return
         end
 
         if input.UserInputType == Enum.UserInputType.Touch then
-            -- Reset touch data
+
+            -- Start touch data
+            touchData.isValid = true
             touchData.startTime = os.clock()
             touchData.startPosition = input.Position
-            touchData.isValid = true
+
+            -- debugText
+            debugText.Text = "Touch Began"
             
             -- Perform raycast
             local touchPosition = input.Position
@@ -223,34 +219,23 @@ local function PlaceModelMobile(player, itemModel)
         end
     end))
 
-    table.insert(keybindConnection, UserInputService.InputChanged:Connect(function(input, gameProcessed)
-        if gameProcessed or not touchData.isValid then
-            return
-        end
-
-        if input.UserInputType == Enum.UserInputType.Touch then
-            local touchDelta = (input.Position - touchData.startPosition).Magnitude
-            if touchDelta > MAX_TAP_MOVEMENT then
-                touchData.isValid = false
-                return
-            end
-
-            local touchDuration = os.clock() - touchData.startTime
-            if touchDuration > MAX_TAP_TIME then
-                touchData.isValid = false
-                return
-            end
-        end
-    end))
-
     table.insert(keybindConnection, UserInputService.InputEnded:Connect(function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
 
         if input.UserInputType == Enum.UserInputType.Touch then
-            -- Only proceed if it's a valid tap and placement is allowed
-            if touchData.isValid and canPlace then
+
+            -- debugText
+            debugText.Text = "Touch Ended"
+
+            local touchPositionDelta = (input.Position - touchData.startPosition).Magnitude
+            local touchTimeDelta = os.clock() - touchData.startTime
+
+            if touchTimeDelta > MAX_TAP_TIME or touchPositionDelta > MAX_TAP_MOVEMENT then
+                touchData.isValid = false
+                return
+            end
+
+            -- Handle placement
+            if canPlace and touchData.isValid then
                 -- Remove all highlights
                 for _, desc in pairs(itemModel:GetDescendants()) do
                     if desc:IsA("Highlight") then
@@ -259,38 +244,28 @@ local function PlaceModelMobile(player, itemModel)
                 end
 
                 -- First disconnect connection
-                for _, connection in pairs(keybindConnection) do
+                for _, connection in ipairs(keybindConnection) do
                     connection:Disconnect()
                 end
-                
+
                 -- Then disable placement mode
                 player:SetAttribute("Placement", false)
-                
+
                 -- Hide placement GUI
                 player.PlayerGui:WaitForChild("PlacementGui").Enabled = false
-                
+
                 -- End interacting mode
                 player:SetAttribute("Interacting", false)
 
                 -- Emit event to server
-                if touchData.currentPlot and touchData.placementCFrame then
-                    print("Firing remote with:", touchData.currentPlot.Name, itemModel.Name, touchData.placementCFrame)
-                    PlaceFurnitureRemote:FireServer(touchData.currentPlot.Name, itemModel.Name, touchData.placementCFrame)
-                else
-                    print("Missing data for placement:", touchData.currentPlot, touchData.placementCFrame)
-                end
+                PlaceFurnitureRemote:FireServer(touchData.currentPlot.Name, itemModel.Name, touchData.placementCFrame)
 
                 task.wait(0.1)
 
                 -- Delete itemModel
                 itemModel:Destroy()
                 itemModel = nil
-            else
-                print("Touch not valid for placement:", touchData.isValid, canPlace)
             end
-            
-            -- Reset touch data
-            touchData.isValid = false
         end
     end))
 end
@@ -448,7 +423,7 @@ function Placement.Enable(player, boxInstance)
     RotateRight.Visible = not isWallHitSurface
 
     -- If the player is a mobile player
-    local isMobile = player:GetAttribute("Mobile")
+    local isMobile = player:GetAttribute("MobilePlayer")
 
     -- Start placement of the item
     if isMobile then

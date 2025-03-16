@@ -1,3 +1,5 @@
+local LocalizationService = game:GetService("LocalizationService")
+local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -6,9 +8,10 @@ local Interaction = require(ReplicatedStorage.Modules.Interaction)
 
 -- If the local player is a mobile player: true
 -- else: false
-local mobilePlayer = UserInputService.TouchEnabled
+local isMobilePlayer = UserInputService.TouchEnabled
+Players.LocalPlayer:SetAttribute("MobilePlayer", isMobilePlayer)
 
-if mobilePlayer then
+if isMobilePlayer then
     -- If the game is running on a mobile device
     Interaction.Mobile()
 else
