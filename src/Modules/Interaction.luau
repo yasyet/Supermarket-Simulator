@@ -24,6 +24,7 @@ local INTERACT_TAG = "Interact"
 local raycastResult = nil
 local previousRaycastResult = nil
 local raycastInstance = nil
+local lastTouchPosition = nil
 
 local Interaction = {}
 
@@ -105,15 +106,29 @@ end
 
 -- Loop to detect which item to interact with
 local function MainInteractionLoop()
+
     task.spawn(function()
         while true do
             task.wait()
 
             local camera = workspace.CurrentCamera
-            local direction = camera.CFrame.LookVector
-
-            -- Shoot a raycast in the direction of the mouse
-            raycastResult = Utility.ShootRaycast(camera, direction, Players.LocalPlayer, MAX_DISTANCE)
+            
+            -- For non-mobile devices, cast ray from mouse position
+            if not Players.LocalPlayer:GetAttribute("MobilePlayer") then
+                local mousePos = UserInputService:GetMouseLocation()
+                local unitRay = camera:ScreenPointToRay(mousePos.X, mousePos.Y)
+                local direction = unitRay.Direction
+                
+                -- Shoot a raycast in the direction of the mouse
+                raycastResult = Utility.ShootRaycast(camera, direction, Players.LocalPlayer, MAX_DISTANCE)
+            else
+                -- Mobile implementation left for later
+                if lastTouchPosition then
+                    local unitRay = camera:ScreenPointToRay(lastTouchPosition.X, lastTouchPosition.Y)
+                    local direction = unitRay.Direction
+                    raycastResult = Utility.ShootRaycast(camera, direction, Players.LocalPlayer, MAX_DISTANCE)
+                end
+            end
 
             -- If the raycast result is nil, continue
             if not raycastResult then
@@ -249,6 +264,7 @@ function Interaction.Mobile()
             local touchDuration = os.clock() - touchStartTime
             if touchDuration < MAX_TAP_TIME then
                 InteractionEndLogic()
+                lastTouchPosition = input.Position
             end
         end
     end)

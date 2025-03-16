@@ -220,9 +220,6 @@ local function PlaceModelMobile(player, itemModel)
 
         if input.UserInputType == Enum.UserInputType.Touch then
 
-            -- debugText
-            debugText.Text = "Touch Ended"
-
             local touchPositionDelta = (input.Position - touchData.startPosition).Magnitude
             local touchTimeDelta = os.clock() - touchData.startTime
 
