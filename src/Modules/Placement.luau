@@ -169,9 +169,6 @@ local function PlaceModelMobile(player, itemModel)
             touchData.isValid = true
             touchData.startTime = os.clock()
             touchData.startPosition = input.Position
-
-            -- debugText
-            debugText.Text = "Touch Began"
             
             -- Perform raycast
             local touchPosition = input.Position
