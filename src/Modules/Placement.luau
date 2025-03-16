@@ -153,47 +153,62 @@ local function PlaceModelMobile(player, itemModel)
 
     -- Store connection to clean up later
     local keybindConnection = {}
+
+    local touchData = {
+        startTime = nil,
+        startPosition = nil,
+        isValid = false,
+        raycastResult = nil,
+        raycastPosition = nil,
+        currentPlot = nil,
+        placementCFrame = nil
+    }
+
     table.insert(keybindConnection, UserInputService.InputBegan:Connect(function(input, gameProcessed)
         if gameProcessed then
             return
         end
 
-        if not itemModel.PrimaryPart then
+        if not itemModel or not itemModel.PrimaryPart then
             return
         end
 
         if input.UserInputType == Enum.UserInputType.Touch then
-            if not input.UserInputState == Enum.UserInputState.Begin then
-                return
-            end
-
+            -- Reset touch data
+            touchData.startTime = os.clock()
+            touchData.startPosition = input.Position
+            touchData.isValid = true
+            
+            -- Perform raycast
             local touchPosition = input.Position
             local camera = workspace.CurrentCamera
             local unitRay = camera:ViewportPointToRay(touchPosition.X, touchPosition.Y)
             local direction = unitRay.Direction
 
-            raycastResult = Utility.ShootRaycast(camera, direction, player, 100)
-            if not raycastResult then
+            touchData.raycastResult = Utility.ShootRaycast(camera, direction, player, 100)
+            if not touchData.raycastResult then
+                touchData.isValid = false
                 return
             end
 
-            raycastPosition = raycastResult.Position
-            raycastInstance = raycastResult.Instance
+            touchData.raycastPosition = touchData.raycastResult.Position
+            local raycastInstance = touchData.raycastResult.Instance
 
-            currentPlot = raycastInstance:FindFirstAncestor("Plot")
+            touchData.currentPlot = raycastInstance:FindFirstAncestor("Plot")
             
             local ownPlot = false
-            if currentPlot then
-                ownPlot = currentPlot:GetAttribute("Owner") == player.UserId
+            if touchData.currentPlot then
+                ownPlot = touchData.currentPlot:GetAttribute("Owner") == player.UserId
             else
                 print("No plot found")
-                ownPlot = false
+                touchData.isValid = false
+                return
             end
 
             local modelObstructed = Utility.IsObstructed(itemModel.Collission, itemModel:GetDescendants())
 
             -- Update placement validity
-            canPlace = not modelObstructed and ownPlot and currentPlot ~= nil
+            canPlace = not modelObstructed and ownPlot and touchData.currentPlot ~= nil
 
             -- Update model's highlight
             UpdateModelHighlight(itemModel, raycastInstance, player, canPlace)
@@ -201,48 +216,30 @@ local function PlaceModelMobile(player, itemModel)
             if not CheckPlacingSurface(itemModel, raycastInstance) then
                 print("Surface not valid")
                 canPlace = false
+                touchData.isValid = false
                 return
             end
 
-            PlaceModel(itemModel, raycastPosition, raycastResult.Normal)
-        end
-    end))
-
-    table.insert(keybindConnection, UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if gameProcessed then
-            return
-        end
-
-        if input.UserInputType == Enum.UserInputType.Touch then
-            touchStartTime = os.clock()
-            touchStartPosition = input.Position
-            isTouching = true
+            -- Calculate placement CFrame and store it
+            touchData.placementCFrame = PlaceModel(itemModel, touchData.raycastPosition, touchData.raycastResult.Normal)
         end
     end))
 
     table.insert(keybindConnection, UserInputService.InputChanged:Connect(function(input, gameProcessed)
-        if gameProcessed then
+        if gameProcessed or not touchData.isValid then
             return
         end
 
-        if not touchStartTime then
-            return
-        end
-
-        if not touchStartPosition then
-            return
-        end
-        
         if input.UserInputType == Enum.UserInputType.Touch then
-            local touchDelta = (input.Position - touchStartPosition).Magnitude
-            if touchDelta <= MAX_TAP_MOVEMENT then
-                isTouching = false
+            local touchDelta = (input.Position - touchData.startPosition).Magnitude
+            if touchDelta > MAX_TAP_MOVEMENT then
+                touchData.isValid = false
                 return
             end
 
-            local touchDuration = os.clock() - touchStartTime
-            if touchDuration <= MAX_TAP_TIME then
-                isTouching = false
+            local touchDuration = os.clock() - touchData.startTime
+            if touchDuration > MAX_TAP_TIME then
+                touchData.isValid = false
                 return
             end
         end
@@ -254,43 +251,48 @@ local function PlaceModelMobile(player, itemModel)
         end
 
         if input.UserInputType == Enum.UserInputType.Touch then
-            if not isTouching then
-                return
-            end
-
-            if not canPlace then
-                return
-            end
-
-            -- Remove all highlights
-            for _, desc in pairs(itemModel:GetDescendants()) do
-                if desc:IsA("Highlight") then
-                    desc:Destroy()
+            -- Only proceed if it's a valid tap and placement is allowed
+            if touchData.isValid and canPlace then
+                -- Remove all highlights
+                for _, desc in pairs(itemModel:GetDescendants()) do
+                    if desc:IsA("Highlight") then
+                        desc:Destroy()
+                    end
                 end
+
+                -- First disconnect connection
+                for _, connection in pairs(keybindConnection) do
+                    connection:Disconnect()
+                end
+                
+                -- Then disable placement mode
+                player:SetAttribute("Placement", false)
+                
+                -- Hide placement GUI
+                player.PlayerGui:WaitForChild("PlacementGui").Enabled = false
+                
+                -- End interacting mode
+                player:SetAttribute("Interacting", false)
+
+                -- Emit event to server
+                if touchData.currentPlot and touchData.placementCFrame then
+                    print("Firing remote with:", touchData.currentPlot.Name, itemModel.Name, touchData.placementCFrame)
+                    PlaceFurnitureRemote:FireServer(touchData.currentPlot.Name, itemModel.Name, touchData.placementCFrame)
+                else
+                    print("Missing data for placement:", touchData.currentPlot, touchData.placementCFrame)
+                end
+
+                task.wait(0.1)
+
+                -- Delete itemModel
+                itemModel:Destroy()
+                itemModel = nil
+            else
+                print("Touch not valid for placement:", touchData.isValid, canPlace)
             end
-
-            -- First disconnect connection
-            for _, connection in pairs(keybindConnection) do
-                connection:Disconnect()
-            end
             
-            -- Then disable placement mode
-            player:SetAttribute("Placement", false)
-            
-            -- Hide placement GUI
-            player.PlayerGui:WaitForChild("PlacementGui").Enabled = false
-            
-            -- End interacting mode
-            player:SetAttribute("Interacting", false)
-
-            -- Emit event to server
-            PlaceFurnitureRemote:FireServer(currentPlot.Name, itemModel.Name, newCFrame)
-
-            task.wait(0.1)
-
-            -- Delete itemModel
-            itemModel:Destroy()
-            itemModel = nil
+            -- Reset touch data
+            touchData.isValid = false
         end
     end))
 end
