@@ -338,8 +338,11 @@ local function PlaceModelNonMobile(player, itemModel)
             break
         end
         
-        -- Shoot a raycast in the direction of the player's head
-        local raycastResult = Utility.ShootRaycast(Camera, Camera.CFrame.LookVector, player, 100)
+        -- Shoot a raycast from the camera towards the mouse position
+        local mousePosition = UserInputService:GetMouseLocation()
+        local rayOrigin = Camera:ViewportPointToRay(mousePosition.X, mousePosition.Y, 0)
+        local raycastResult = Utility.ShootRaycast(Camera, rayOrigin.Direction, player, 100)
+
         if not raycastResult then
             canPlace = false
             continue

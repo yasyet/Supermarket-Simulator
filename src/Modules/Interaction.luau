@@ -14,7 +14,7 @@ local Utility = require(Modules.Utility)
 local Placement = require(Modules.Placement)
 
 -- Constants
-local MAX_DISTANCE = 400 --11
+local MAX_DISTANCE = 25 -- 25
 local FILL_TRANSPARENCY = 0.9
 local OUTLINE_TRANSPARENCY = 0.3
 local TWEEN_TIME = 0.06

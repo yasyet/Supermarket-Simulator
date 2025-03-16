@@ -23,14 +23,25 @@ end
 
 -- Function to check if object is in part
 function Utility.IsObstructed(part, blacklist)
-    -- Create a region around the part
-    local region = Region3.new(part.Position - (part.Size / 2), part.Position + (part.Size / 2))
+    -- If blacklist is not a table, convert it to a table
+    if type(blacklist) ~= "table" then
+        blacklist = blacklist and {blacklist} or {}
+    end
 
-    -- Calculate the parts in the region
-    local partsInRegion = workspace:FindPartsInRegion3WithIgnoreList(region, blacklist, math.huge)
+    -- Get part properties
+    local partCFrame = part.CFrame
+    local partSize = part.Size
 
-    -- If there is more than one part in the region, return true (since it includes the floor)
-    return #partsInRegion > 1
+    -- Set overlap parameters
+    local overlapParams = OverlapParams.new()
+    overlapParams.FilterType = Enum.RaycastFilterType.Blacklist
+    overlapParams.FilterDescendantsInstances = blacklist
+
+    -- Get parts in box
+    local partsInBox = workspace:GetPartBoundsInBox(partCFrame, partSize, overlapParams)
+
+    -- Return true if partsInBox is not empty
+    return #partsInBox > 1
 end
 
 -- Set attributes of model & serialze it
