@@ -58,6 +58,8 @@ local function PlaceModel(model, raycastPosition, raycastSurface)
     newCFrame = Utility.RoundToNearestStud(newCFrame, 0.5)
     model:SetPrimaryPartCFrame(newCFrame)
     model.Parent = workspace
+
+    return newCFrame
 end
 
 -- Update color of model's highlight
@@ -137,12 +139,8 @@ local function PlaceModelMobile(player, itemModel)
 
     -- Track if placement is valid
     local canPlace = false
-    local currentPlot = nil
 
     -- Variables for keybinds
-    local touchStartTime = nil
-    local touchStartPosition = nil
-    local isTouching = false
     local MAX_TAP_TIME = 0.3
     local MAX_TAP_MOVEMENT = 10
 
